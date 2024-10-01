@@ -31,9 +31,9 @@ public class BatchConfig {
                 .build();
     }
 
+    // Decision step
     @Bean
     public Step step2(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
-
         return new StepBuilder("step_two", jobRepository)
                 .tasklet((StepContribution contribution, ChunkContext chunkContext) -> {
                     // Example logic: use a job parameter to determine even or odd
@@ -42,11 +42,13 @@ public class BatchConfig {
                     Long runDecision = (Long) jobParameters.get("runDecision");
 
                     if (runDecision % 2 == 0) {
-                        log.info("Even number detected : {}" , runDecision);
-                        contribution.setExitStatus(new ExitStatus("EVEN"));
+                        log.info("Even number detected : {}", runDecision);
+                        ExitStatus exitStatus = new ExitStatus("EVEN");
+                        contribution.setExitStatus(exitStatus);
                     } else {
-                        log.info("Odd number detected : {}" , runDecision);
-                        contribution.setExitStatus(new ExitStatus("ODD"));
+                        log.info("Odd number detected : {}", runDecision);
+                        ExitStatus exitStatus = new ExitStatus("ODD");
+                        contribution.setExitStatus(exitStatus);
                     }
 
                     log.info("STEP2 EXECUTED");
