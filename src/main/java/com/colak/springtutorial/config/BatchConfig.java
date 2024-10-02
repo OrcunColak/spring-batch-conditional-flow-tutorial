@@ -1,5 +1,6 @@
 package com.colak.springtutorial.config;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.Job;
@@ -18,11 +19,33 @@ import org.springframework.transaction.PlatformTransactionManager;
 import java.util.Map;
 
 @Configuration
+@RequiredArgsConstructor
 @Slf4j
 public class BatchConfig {
 
+    private final JobRepository jobRepository;
+    private final PlatformTransactionManager transactionManager;
+
     @Bean
-    public Step step1(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+    public Job job(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+        return new JobBuilder("job1", jobRepository)
+                .start(step1())
+                .on(ExitStatus.COMPLETED.getExitCode())
+                .to(step2())
+
+                // If step2 fails go to step4
+                .from(step2())
+                .on("EVEN").to(stepEven()) // If EVEN, go to evenStep
+
+                // If step2 completes go to step2
+                .from(step2())
+                .on("ODD").to(stepOdd()) // If EVEN, go to evenStep
+                .end()// End the job
+                .build();
+    }
+
+    @Bean
+    public Step step1() {
         return new StepBuilder("step_one", jobRepository)
                 .tasklet((_, _) -> {
                     log.info("STEP1 EXECUTED");
@@ -33,7 +56,7 @@ public class BatchConfig {
 
     // Decision step
     @Bean
-    public Step step2(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+    public Step step2() {
         return new StepBuilder("step_two", jobRepository)
                 .tasklet((StepContribution contribution, ChunkContext chunkContext) -> {
                     // Example logic: use a job parameter to determine even or odd
@@ -59,7 +82,7 @@ public class BatchConfig {
     }
 
     @Bean
-    public Step stepOdd(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+    public Step stepOdd() {
         return new StepBuilder("step_four", jobRepository)
                 .tasklet((_, _) -> {
                     log.info("STEP ODD EXECUTED");
@@ -69,30 +92,12 @@ public class BatchConfig {
     }
 
     @Bean
-    public Step stepEven(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+    public Step stepEven() {
         return new StepBuilder("step_three", jobRepository)
                 .tasklet((_, _) -> {
                     log.info("STEP EVEN EXECUTED");
                     return RepeatStatus.FINISHED;
                 }, transactionManager)
-                .build();
-    }
-
-    @Bean
-    public Job job(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
-        return new JobBuilder("job1", jobRepository)
-                .start(step1(jobRepository, transactionManager))
-                .on(ExitStatus.COMPLETED.getExitCode())
-                .to(step2(jobRepository, transactionManager))
-
-                // If step2 fails go to step4
-                .from(step2(jobRepository, transactionManager))
-                .on("EVEN").to(stepEven(jobRepository, transactionManager)) // If EVEN, go to evenStep
-
-                // If step2 completes go to step2
-                .from(step2(jobRepository, transactionManager))
-                .on("ODD").to(stepOdd(jobRepository, transactionManager)) // If EVEN, go to evenStep
-                .end()// End the job
                 .build();
     }
 }
